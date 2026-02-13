@@ -29,12 +29,9 @@ from enum import IntEnum, StrEnum
 from homeassistant.loader import bind_hass
 from homeassistant.components.vacuum import (
     StateVacuumEntity,
-    STATE_CLEANING,
-    STATE_DOCKED,
-    STATE_ERROR,
-    STATE_IDLE,
-    STATE_RETURNING,
-    STATE_PAUSED
+    VacuumActivity,
+    VacuumEntityFeature,
+    # Remove the STATE_ names entirely
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -113,6 +110,11 @@ TUYA_STATUS_MAPPING = { #153
     "BhADGgIIAQ==": "COMPLETED",
     "AA==": "STANDBY",
     "AhAB": "SLEEPING",
+    "completed": "COMPLETED",
+    "charging": "CHARGING",
+    "cleaning": "AUTO",
+    "sleeping": "SLEEPING",
+    "standby": "STANDBY",
 }
 
 STATUS_MAPPING = {
@@ -260,15 +262,15 @@ class RoboVacEntity(StateVacuumEntity):
                     getErrorMessage(self.error_code)
                 )
             )
-            return STATE_ERROR
+            return VacuumActivity.ERROR
         elif self.tuya_state == "Charging" or self.tuya_state == "Completed":
-            return STATE_DOCKED
+            return VacuumActivity.DOCKED
         elif self.tuya_state == "Recharge":
-            return STATE_RETURNING
+            return VacuumActivity.RETURNING
         elif self.tuya_state == "Sleeping" or self.tuya_state == "Standby":
-            return STATE_IDLE
+            return VacuumActivity.IDLE
         else:
-            return STATE_CLEANING
+            return VacuumActivity.CLEANING
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -436,31 +438,31 @@ class RoboVacEntity(StateVacuumEntity):
 
         if self.robovac_supported & RoboVacEntityFeature.CLEANING_AREA:
             self._attr_cleaning_area = self.tuyastatus.get(
-                self._tuya_command_codes[RobovacCommand.CLEANING_AREA]
+                self._tuya_command_codes.get(RobovacCommand.CLEANING_AREA)
             )
         _LOGGER.debug("_attr_cleaning_area %s", self._attr_cleaning_area)
 
         if self.robovac_supported & RoboVacEntityFeature.CLEANING_TIME:
             self._attr_cleaning_time = self.tuyastatus.get(
-                self._tuya_command_codes[RobovacCommand.CLEANING_TIME]
+                self._tuya_command_codes.get(RobovacCommand.CLEANING_TIME)
             )
         _LOGGER.debug("_attr_cleaning_time %s", self._attr_cleaning_time)
 
         if self.robovac_supported & RoboVacEntityFeature.AUTO_RETURN:
             self._attr_auto_return = self.tuyastatus.get(
-                self._tuya_command_codes[RobovacCommand.AUTO_RETURN]
+                self._tuya_command_codes.get(RobovacCommand.AUTO_RETURN)
             )
         _LOGGER.debug("_attr_auto_return %s", self._attr_auto_return)
 
         if self.robovac_supported & RoboVacEntityFeature.DO_NOT_DISTURB:
             self._attr_do_not_disturb = self.tuyastatus.get(
-                self._tuya_command_codes[RobovacCommand.DO_NOT_DISTURB]
+                self._tuya_command_codes.get(RobovacCommand.DO_NOT_DISTURB)
             )
         _LOGGER.debug("_attr_do_not_disturb %s", self._attr_do_not_disturb)
 
         if self.robovac_supported & RoboVacEntityFeature.BOOST_IQ:
             self._attr_boost_iq = self.tuyastatus.get(
-                self._tuya_command_codes[RobovacCommand.BOOST_IQ]
+                self._tuya_command_codes.get(RobovacCommand.BOOST_IQ)
             )
         _LOGGER.debug("_attr_boost_iq %s", self._attr_boost_iq)
 
@@ -468,7 +470,7 @@ class RoboVacEntity(StateVacuumEntity):
             consumables = ast.literal_eval(
                 base64.b64decode(
                     self.tuyastatus.get(
-                        self._tuya_command_codes[RobovacCommand.CONSUMABLES]
+                        self._tuya_command_codes.get(RobovacCommand.CONSUMABLES)
                     )
                 ).decode("ascii")
             )
